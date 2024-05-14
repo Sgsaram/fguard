@@ -1,0 +1,11 @@
+__pycache__/
+assets/
+.eolearn_cache/
+.pytest_cache/
+fguard.egg-info/
+output/
+venv/
+.env
+.fguard-config.json
+pyrightconfig.json
+*.pth

@@ -1,0 +1,2 @@
+[tool.black]
+exclude = "(.git/)|(.vscode/)|(.idea/)|(__pycache__/)|(.eolearn_cache/)|(.ipynb_checkpoints/)|(venv/)"

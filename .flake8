@@ -1,0 +1,12 @@
+[flake8]
+exclude =
+    .git/,
+    .vscode/,
+    __pycache__/,
+    .idea/
+    .eolearn_cache/,
+    .ipynb_checkpoints/,
+    venv/,
+import-order-style = google
+inline-quotes = "
+max-line-length = 88
