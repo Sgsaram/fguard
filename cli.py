@@ -7,20 +7,22 @@ import tomllib
 import click
 import dotenv
 import numpy as np
+import platformdirs
+import tqdm
 
-import communication
-import handler
-import utils
-import vision
+import fguard.communication
+import fguard.handler
+import fguard.utils
+import fguard.vision
 
 dotenv.load_dotenv(dotenv.find_dotenv())
 
-BASE_DIR = dir_path = os.path.dirname(os.path.realpath(__file__))
+BASE_DIR = platformdirs.user_data_dir("fguard", False)
 CONFIG_FILE = os.path.join(BASE_DIR, ".fguard-config.json")
 # OUTPUT_FOLDER = os.path.join(BASE_DIR, "output")
 # SH_CLIENT_ID = os.environ.get("SH_CLIENT_ID", "")
 # SH_CLIENT_SECRET = os.environ.get("SH_CLIENT_SECRET", "")
-EOLEARN_CACHE_FOLDER = os.path.join(BASE_DIR, ".eolearn_cache")
+EOLEARN_CACHE_FOLDER = os.path.join(BASE_DIR, ".fguard_cache")
 
 
 @click.group()
@@ -31,12 +33,12 @@ def cli():
 @click.command()
 @click.option("-i", "--id", type=str)
 @click.option("-t", "--token", type=str)
-@click.option("-s", "--settings", type=click.Path(exists=True, file_okay=True))
-def config(id, token, settings):
+@click.option("-f", "--file", type=click.Path(exists=True, file_okay=True))
+def config(id, token, file):
     client_id = None
     client_token = None
-    if settings is not None:
-        with open(settings, "rb") as f:
+    if file is not None:
+        with open(file, "rb") as f:
             data = tomllib.load(f)
             if "config" in data:
                 if "id" in data["config"]:
@@ -48,29 +50,29 @@ def config(id, token, settings):
     if token is not None:
         client_token = token
     if client_id is None:
-        print("Id wasn't specified")
+        print("Id wasn't specified.")
         exit(-1)
     if client_token is None:
-        print("Token wasn't specified")
+        print("Token wasn't specified.")
         exit(-1)
     obj = dict()
     obj["id"] = client_id
     obj["token"] = client_token
+    if not os.path.exists(BASE_DIR):
+        os.makedirs(BASE_DIR)
     with open(CONFIG_FILE, "w") as f:
         json.dump(obj, f)
 
 
-# TODO: ADD RESOLUTION
 @click.command()
 @click.option("-c", "--coordinates", nargs=4, type=float)
-@click.option("-t", "--timestamps", nargs=2, type=str)
-@click.option("-s", "--settings", type=click.Path(exists=True, file_okay=True))
-@click.option("-l", "--landsat", type=str)
+@click.option("-t", "--time", nargs=2, type=str)
+@click.option("-f", "--file", type=click.Path(exists=True, file_okay=True))
+@click.option("-d", "--detector", default="net", type=click.Choice(["net", "cluster"]))
+@click.option("-s", "--separate", is_flag=True)
+# @click.option("-l", "--landsat", type=str)
 @click.argument("output-folder", type=click.Path(exists=True, dir_okay=True), required=True)
-def request(coordinates, timestamps, settings, landsat, output_folder):
-    if not os.path.exists(CONFIG_FILE):
-        print("You didn't specify credentials")
-        exit(-1)
+def request(coordinates, time, file, detector, separate, output_folder):
     id = None
     token = None
     with open(CONFIG_FILE, "r") as f:
@@ -80,91 +82,101 @@ def request(coordinates, timestamps, settings, landsat, output_folder):
         if "token" in data:
             token = data["token"]
     if id is None or token is None:
-        print("You didn't specify credentials")
+        print("You didn't specify credentials. Use `fguard config`.")
         exit(-1)
-    from_time = None
-    to_time = None
+    timestamp = None
     coords = None
-    satellite = "sentinel2_l1c"
-    if settings is not None:
-        with open(settings, "rb") as f:
+    m_detector = None
+    if file is not None:
+        with open(file, "rb") as f:
             data = tomllib.load(f)
             if "request" in data:
-                if "from" in data["request"]:
-                    from_time = data["request"]["from"]
-                if "to" in data["request"]:
-                    to_time = data["request"]["to"]
+                if "time" in data["request"]:
+                    timestamp = data["request"]["time"]
                 if "coordinates" in data["request"]:
                     coords = data["request"]["coordinates"]
-                if "landsat" in data["request"]:
-                    satellite = data["request"]["landsat"]
+                if "detector" in data["request"]:
+                    m_detector = data["request"]["detector"]
     if coordinates is not None:
         coords = coordinates
-    if timestamps is not None:
-        from_time = timestamps[0]
-        to_time = timestamps[1]
-    if landsat is not None:
-        satellite = landsat
+    if time is not None:
+        timestamp = time
+    if detector is not None:
+        m_detector = detector
     if coords is None:
-        print("Coordinates weren't specified")
+        print("Coordinates weren't specified.")
         exit(-1)
-    if from_time is None or to_time is None:
-        print("Timestamps weren't specified")
+    if timestamp is None:
+        print("Time wasn't specified.")
         exit(-1)
 
 
 
 
-    utils.remove_folder_content(output_folder)
-    comclient = communication.CommunicationClient(
+    fguard.utils.remove_folder_content(output_folder)
+    print(f"Emptied {output_folder}.")
+
+
+
+    comclient = fguard.communication.CommunicationClient(
         sh_client_id=id,
         sh_client_secret=token,
         cache_folder=EOLEARN_CACHE_FOLDER,
     )
     time_interval = (
-        datetime.datetime.strptime(from_time, "%Y.%m.%d"),
-        datetime.datetime.strptime(to_time, "%Y.%m.%d") + datetime.timedelta(days=1),
+        datetime.datetime.strptime(timestamp[0], "%Y.%m.%d"),
+        datetime.datetime.strptime(timestamp[1], "%Y.%m.%d") + datetime.timedelta(days=1),
     )
-    print("Started downloading data...")
-    print("(Please wait. This may take no more than 2 minutes)")
+    print("Started downloading data.")
     data = comclient.get_winter_data(
         coords=coords,
         time_interval=time_interval,
-        resolution=20,
-        data_collection=satellite,
+        size=(512, 512),
+        data_collection="sentinel2_l1c",
     )
     _res = data[0][0].shape[:2] if len(data) > 0 else (0, 0)
-    print(f"Downloaded data successfully -> got {len(data)} images with {_res} shape")
+    print(f"Downloaded {len(data)} images with {_res} shape.")
 
 
     
-    print("Started detection...")
+    print("Started detection.")
     ready_data = []
     for tc, mask, _ in data:
         ready_data.append((tc, mask))
-    detector = vision.Detector(c_blur=9)
-    result_array = detector.pipe_detect_deforestation(ready_data)
-    print("Detected successfully")
+    detector_obj = None
+    if m_detector == "net":
+        detector_obj = fguard.vision.UNetDetector("MODEL.PTH")
+    else:
+        detector_obj = fguard.vision.KMeansDetector(c_blur=9)
+    result_array = detector_obj.pipe_detect_deforestation(ready_data)
 
 
 
-    print("Started processing...")
-    df_handler = handler.DeforestationHandler(result_array)
+    print("Started processing.")
+    df_handler = fguard.handler.DeforestationHandler(result_array)
     result_clusters, unique_comp_cnt, events = df_handler()
-    print("Processed successfully")
 
 
     print("Saving...")
-    acg_list = utils.AutoColorGenerator()
-    array_images = utils.cluster_arrays_to_images(result_clusters, acg_list)
+    acg_list = fguard.utils.AutoColorGenerator()
+    array_images = fguard.utils.cluster_arrays_to_images(result_clusters, acg_list)
     max_number_length = len(str(len(array_images)))
-    for i in range(len(array_images)):
-        array_image_to_print = np.concatenate((array_images[i], data[i][0]), axis=1)
-        image_to_print = PIL.Image.fromarray(array_image_to_print)
-        image_to_print.save(
+    for i in tqdm.tqdm(range(len(array_images)), desc="Saving images", unit="pair"):
+        rgba_mask = PIL.Image.fromarray(array_images[0]).convert("RGBA")
+        pix = rgba_mask.load()
+        for x in range(rgba_mask.width):
+            for y in range(rgba_mask.height):
+                if pix[x, y][:3] == (0, 0, 0):
+                    pix[x, y] = (0, 0, 0, 0)
+        rgba_real = PIL.Image.fromarray(data[i][0]).convert("RGBA")
+        final_image = PIL.Image.blend(rgba_real, rgba_mask, 0.8)
+        final_image.save(
             os.path.join(
                 output_folder,
-                "img_" + utils.get_right_aligned_number(i, max_number_length) + ".png"
+                "img-" + fguard.utils.get_right_aligned_number(
+                    i,
+                    max_number_length,
+                ) + "-" + data[i][2] + ".png",
             ),
             "png",
         )
@@ -198,7 +210,7 @@ def request(coordinates, timestamps, settings, landsat, output_folder):
     info_obj["events"] = dict_events
     with open(os.path.join(output_folder, "info.json"), "w") as f:
         json.dump(info_obj, f, indent=4)
-    print(f"Saved result in '{output_folder}' directory")
+    print(f"Saved results in '{output_folder}' directory")
 
 
 def main():
@@ -206,7 +218,8 @@ def main():
     cli.add_command(request)
     cli()
 
-
+if __name__ == "__main__":
+    main()
 
 
 

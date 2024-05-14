@@ -4,6 +4,7 @@ import cv2 as cv
 import numpy as np
 import torch
 import torch.nn.functional as F
+import tqdm
 
 from fguard.unet import UNet
 
@@ -76,7 +77,7 @@ class KMeansDetector(Detector):
         data: list[tuple[np.ndarray, np.ndarray]],
     ) -> np.ndarray:
         final_masks = []
-        for tc_image, mask in data:
+        for tc_image, mask in tqdm.tqdm(data, desc="Detecting deforestation", unit="image"):
             cur_mask = self.detect(tc_image, mask)
             if len(final_masks) > 0:
                 cur_mask |= final_masks[-1]
@@ -102,9 +103,14 @@ class UNetDetector(Detector):
     def detect(
         self,
         image: np.ndarray,
+        mask: np.ndarray,
     ) -> np.ndarray:
         self.net.eval()
         img = np.copy(image)
+        for x in range(image.shape[0]):
+            for y in range(image.shape[1]):
+                if mask[x, y][0]:
+                    img[x, y] = (0, 0, 0)
         img = img.transpose((2, 0, 1))
         if (img > 1).any():
             img = img / 255.0
@@ -121,3 +127,15 @@ class UNetDetector(Detector):
                 mask = torch.sigmoid(output) > self.out_threshold
 
         return mask[0].long().squeeze().numpy()
+
+    def pipe_detect_deforestation(
+        self,
+        data: list[tuple[np.ndarray, np.ndarray]],
+    ) -> np.ndarray:
+        final_masks = []
+        for tc_image, mask in tqdm.tqdm(data, desc="Detecting deforestation", unit="image"):
+            cur_mask = self.detect(tc_image, mask)
+            if len(final_masks) > 0:
+                cur_mask |= final_masks[-1]
+            final_masks.append(cur_mask)
+        return np.array(final_masks)

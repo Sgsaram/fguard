@@ -2,6 +2,7 @@ import os
 import random
 
 import numpy as np
+import tqdm
 
 
 def remove_folder_content(
@@ -84,13 +85,7 @@ def cluster_arrays_to_images(
     colors: list[tuple] | AutoColorGenerator,
 ) -> np.ndarray:
     res = []
-    for i in range(images.shape[0]):
-        if i == images.shape[0] // 4:
-            print("-> Done 25%")
-        if i == images.shape[0] // 2:
-            print("-> Done 50%")
-        if i == images.shape[0] * 3 // 4:
-            print("-> Done 75%")
+    for i in tqdm.tqdm(range(images.shape[0]), desc="Preparing images", unit="mask"):
         res.append(cluster_array_to_image(images[i], colors))
     return np.array(res)
 

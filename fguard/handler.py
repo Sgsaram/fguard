@@ -1,6 +1,7 @@
 import sys
 
 import numpy as np
+import tqdm
 
 sys.setrecursionlimit(2048 * 2048)
 
@@ -101,13 +102,7 @@ class DeforestationHandler:
         res_cluster = []
         prev_cluster = np.zeros_like(self.images[0], dtype=np.uint32)
         unique_comp_cnt = 0
-        for cur_time in range(self.images_cnt):
-            if cur_time == self.images_cnt // 4:
-                print("-> Done 25%")
-            if cur_time == self.images_cnt // 2:
-                print("-> Done 50%")
-            if cur_time == self.images_cnt * 3 // 4:
-                print("-> Done 75%")
+        for cur_time in tqdm.tqdm(range(self.images_cnt), desc="Processing images", unit="image"):
             cmp_handler = ComponentFounder(self.images[cur_time], self.min_comp_dist)
             cur_cluster, comp_cnt = cmp_handler()
             conn_with_prev = [set() for _ in range(comp_cnt + 1)]
