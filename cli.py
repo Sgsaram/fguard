@@ -69,12 +69,14 @@ def config(id, token, file):
 @click.option("-t", "--time", nargs=2, type=str)
 @click.option("-f", "--file", type=click.Path(exists=True, file_okay=True))
 @click.option("-d", "--detector", default="net", type=click.Choice(["net", "cluster"]))
-@click.option("-s", "--separate", is_flag=True)
+@click.option("-s", "--size", nargs=2, type=int)
+@click.option("-i", "--isolate", is_flag=True)
 # @click.option("-l", "--landsat", type=str)
 @click.argument("output-folder", type=click.Path(exists=True, dir_okay=True), required=True)
-def request(coordinates, time, file, detector, separate, output_folder):
+def request(coordinates, time, file, detector, size, isolate, output_folder):
     id = None
     token = None
+    m_size = (256, 256)
     with open(CONFIG_FILE, "r") as f:
         data = json.load(f)
         if "id" in data:
@@ -97,18 +99,23 @@ def request(coordinates, time, file, detector, separate, output_folder):
                     coords = data["request"]["coordinates"]
                 if "detector" in data["request"]:
                     m_detector = data["request"]["detector"]
+                if "size" in data["request"]:
+                    m_size = data["request"]["size"]
     if coordinates is not None:
         coords = coordinates
     if time is not None:
         timestamp = time
     if detector is not None:
         m_detector = detector
+    if size is not None:
+        m_size = size
     if coords is None:
         print("Coordinates weren't specified.")
         exit(-1)
     if timestamp is None:
         print("Time wasn't specified.")
         exit(-1)
+    coords = (coords[1], coords[0], coords[3], coords[2])
 
 
 
@@ -128,49 +135,67 @@ def request(coordinates, time, file, detector, separate, output_folder):
         datetime.datetime.strptime(timestamp[1], "%Y.%m.%d") + datetime.timedelta(days=1),
     )
     print("Started downloading data.")
-    data = comclient.get_winter_data(
-        coords=coords,
-        time_interval=time_interval,
-        size=(512, 512),
-        data_collection="sentinel2_l1c",
-    )
+    try:
+        data = comclient.get_winter_data(
+            coords=coords,
+            time_interval=time_interval,
+            size=m_size,
+            data_collection="sentinel2_l1c",
+        )
+    except:
+        exit(-1)
     _res = data[0][0].shape[:2] if len(data) > 0 else (0, 0)
     print(f"Downloaded {len(data)} images with {_res} shape.")
 
 
     
-    print("Started detection.")
+    print("Started detection", end=" ")
     ready_data = []
     for tc, mask, _ in data:
         ready_data.append((tc, mask))
     detector_obj = None
     if m_detector == "net":
+        print("using neural networks.")
         detector_obj = fguard.vision.UNetDetector("MODEL.pth")
     else:
+        print("using unsupervised clustering.")
         detector_obj = fguard.vision.KMeansDetector(c_blur=9)
     result_array = detector_obj.pipe_detect_deforestation(ready_data)
 
 
 
     print("Started processing.")
-#     df_handler = fguard.handler.DeforestationHandler(result_array)
-#     result_clusters, unique_comp_cnt, events = df_handler()
-    result_clusters = result_array
+    df_handler = fguard.handler.DeforestationHandler(result_array)
+    result_clusters, unique_comp_cnt, events = df_handler()
 
 
     print("Started exporting.")
-    acg_list = fguard.utils.AutoColorGenerator(bottom_limit=150)
+    acg_list = fguard.utils.AutoColorGenerator(bottom_limit=100, upper_limit=200)
     array_images = fguard.utils.cluster_arrays_to_images(result_clusters, acg_list)
     max_number_length = len(str(len(array_images)))
     for i in tqdm.tqdm(range(len(array_images)), desc="Saving images", unit="pair"):
-        rgba_mask = PIL.Image.fromarray(array_images[0]).convert("RGBA")
+        rgba_mask = PIL.Image.fromarray(array_images[i]).convert("RGBA")
         pix = rgba_mask.load()
         for x in range(rgba_mask.width):
             for y in range(rgba_mask.height):
                 if pix[x, y][:3] == (0, 0, 0):
                     pix[x, y] = (0, 0, 0, 0)
+                else:
+                    cur = list(pix[x, y])
+                    cur[3] = round(1 * 255)
+                    pix[x, y] = tuple(cur)
         rgba_real = PIL.Image.fromarray(data[i][0]).convert("RGBA")
-        final_image = PIL.Image.blend(rgba_real, rgba_mask, 0)
+        rgba_real.save(
+            os.path.join(
+                output_folder,
+                "real-" + fguard.utils.get_right_aligned_number(
+                    i,
+                    max_number_length,
+                ) + "-" + data[i][2].strftime('%Y-%m-%d') + ".png",
+            ),
+            "png",
+        )
+        final_image = PIL.Image.alpha_composite(rgba_real, rgba_mask)
         final_image.save(
             os.path.join(
                 output_folder,
@@ -197,7 +222,7 @@ def request(coordinates, time, file, detector, separate, output_folder):
 #             ),
 #             "png",
 #         )
-    return
+
     dict_events = list()
     for event in events:
         dict_events.append(event.get_dict())
