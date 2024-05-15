@@ -145,7 +145,7 @@ def request(coordinates, time, file, detector, separate, output_folder):
         ready_data.append((tc, mask))
     detector_obj = None
     if m_detector == "net":
-        detector_obj = fguard.vision.UNetDetector("MODEL.PTH")
+        detector_obj = fguard.vision.UNetDetector("MODEL.pth")
     else:
         detector_obj = fguard.vision.KMeansDetector(c_blur=9)
     result_array = detector_obj.pipe_detect_deforestation(ready_data)
@@ -153,12 +153,13 @@ def request(coordinates, time, file, detector, separate, output_folder):
 
 
     print("Started processing.")
-    df_handler = fguard.handler.DeforestationHandler(result_array)
-    result_clusters, unique_comp_cnt, events = df_handler()
+#     df_handler = fguard.handler.DeforestationHandler(result_array)
+#     result_clusters, unique_comp_cnt, events = df_handler()
+    result_clusters = result_array
 
 
-    print("Saving...")
-    acg_list = fguard.utils.AutoColorGenerator()
+    print("Saving.")
+    acg_list = fguard.utils.AutoColorGenerator(bottom_limit=150)
     array_images = fguard.utils.cluster_arrays_to_images(result_clusters, acg_list)
     max_number_length = len(str(len(array_images)))
     for i in tqdm.tqdm(range(len(array_images)), desc="Saving images", unit="pair"):
@@ -169,14 +170,14 @@ def request(coordinates, time, file, detector, separate, output_folder):
                 if pix[x, y][:3] == (0, 0, 0):
                     pix[x, y] = (0, 0, 0, 0)
         rgba_real = PIL.Image.fromarray(data[i][0]).convert("RGBA")
-        final_image = PIL.Image.blend(rgba_real, rgba_mask, 0.8)
+        final_image = PIL.Image.blend(rgba_real, rgba_mask, 1)
         final_image.save(
             os.path.join(
                 output_folder,
                 "img-" + fguard.utils.get_right_aligned_number(
                     i,
                     max_number_length,
-                ) + "-" + data[i][2] + ".png",
+                ) + "-" + data[i][2].strftime('%Y-%m-%d') + ".png",
             ),
             "png",
         )
@@ -196,7 +197,7 @@ def request(coordinates, time, file, detector, separate, output_folder):
 #             ),
 #             "png",
 #         )
-
+    return
     dict_events = list()
     for event in events:
         dict_events.append(event.get_dict())

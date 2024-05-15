@@ -109,7 +109,7 @@ class UNetDetector(Detector):
         img = np.copy(image)
         for x in range(image.shape[0]):
             for y in range(image.shape[1]):
-                if mask[x, y][0]:
+                if not mask[x, y][0]:
                     img[x, y] = (0, 0, 0)
         img = img.transpose((2, 0, 1))
         if (img > 1).any():
