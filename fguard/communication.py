@@ -177,8 +177,6 @@ class CommunicationClient:
         res = []
         if verbose:
             time_intervals = CommunicationClient._split_time_intervals(time_intervals, parts=10)
-            for a, b in time_intervals:
-                print(a, b)
             for timep in tqdm.tqdm(time_intervals, desc="Downloading data", unit="batch"):
                 res.extend(
                     self.get_data_otp(

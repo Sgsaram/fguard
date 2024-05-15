@@ -2,6 +2,7 @@ import typing
 
 import cv2 as cv
 import numpy as np
+import PIL.Image
 import torch
 import torch.nn.functional as F
 import tqdm
@@ -111,6 +112,13 @@ class UNetDetector(Detector):
             for y in range(image.shape[1]):
                 if not mask[x, y][0]:
                     img[x, y] = (0, 0, 0)
+
+        old_size = (image.shape[1], image.shape[0])
+        new_size = (256, 256)
+        img = PIL.Image.fromarray(img)
+        img = img.resize(new_size, PIL.Image.Resampling.BICUBIC)
+        img = np.array(img)
+        
         img = img.transpose((2, 0, 1))
         if (img > 1).any():
             img = img / 255.0
@@ -126,7 +134,13 @@ class UNetDetector(Detector):
             else:
                 mask = torch.sigmoid(output) > self.out_threshold
 
-        return mask[0].long().squeeze().numpy()
+
+        res = mask[0].long().squeeze().numpy()
+        res = (res * 255).astype(np.uint8)
+        res = PIL.Image.fromarray(res)
+        res = res.resize(old_size, PIL.Image.Resampling.NEAREST)
+        res = np.array(res)
+        return res > 0
 
     def pipe_detect_deforestation(
         self,

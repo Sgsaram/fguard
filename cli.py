@@ -2,12 +2,15 @@ import datetime
 import json
 import os
 import PIL.Image
+import shutil
 import tomllib
 
 import click
 import dotenv
 import numpy as np
+import oauthlib.oauth2.rfc6749.errors
 import platformdirs
+import sentinelhub
 import tqdm
 
 import fguard.communication
@@ -77,6 +80,9 @@ def request(coordinates, time, file, detector, size, isolate, output_folder):
     id = None
     token = None
     m_size = (256, 256)
+    if not os.path.exists(CONFIG_FILE):
+        print("You didn't specify credentials. Use `fguard config`.")
+        exit(-1)
     with open(CONFIG_FILE, "r") as f:
         data = json.load(f)
         if "id" in data:
@@ -142,12 +148,22 @@ def request(coordinates, time, file, detector, size, isolate, output_folder):
             size=m_size,
             data_collection="sentinel2_l1c",
         )
+    except sentinelhub.exceptions.OutOfRequestsException:
+        print("No processing units on account.")
+        exit(-1)
+    except oauthlib.oauth2.rfc6749.errors.InvalidClientError:
+        print("Account with that id wasn't found.")
+        exit(-1)
+    except oauthlib.oauth2.rfc6749.errors.UnauthorizedClientError:
+        print("Account with that token wasn't found.")
+        exit(-1)
     except:
+        print("Something went wrong while downloading data")
         exit(-1)
     _res = data[0][0].shape[:2] if len(data) > 0 else (0, 0)
-    print(f"Downloaded {len(data)} images with {_res} shape.")
-
-
+    print(f"Downloaded {len(data)} images with {_res} shape and photo shooting timestamps:")
+    for ind, da in enumerate(data):
+        print(str(ind + 1) + " --> " + str(da[2]))
     
     print("Started detection", end=" ")
     ready_data = []
@@ -185,27 +201,30 @@ def request(coordinates, time, file, detector, size, isolate, output_folder):
                     cur[3] = round(1 * 255)
                     pix[x, y] = tuple(cur)
         rgba_real = PIL.Image.fromarray(data[i][0]).convert("RGBA")
-        rgba_real.save(
-            os.path.join(
-                output_folder,
-                "real-" + fguard.utils.get_right_aligned_number(
-                    i,
-                    max_number_length,
-                ) + "-" + data[i][2].strftime('%Y-%m-%d') + ".png",
-            ),
-            "png",
-        )
-        final_image = PIL.Image.alpha_composite(rgba_real, rgba_mask)
-        final_image.save(
-            os.path.join(
-                output_folder,
-                "img-" + fguard.utils.get_right_aligned_number(
-                    i,
-                    max_number_length,
-                ) + "-" + data[i][2].strftime('%Y-%m-%d') + ".png",
-            ),
-            "png",
-        )
+        if isolate:
+            rgba_real.save(
+                os.path.join(
+                    output_folder,
+                    "real-" + data[i][2].strftime('%Y-%m-%d') + ".png",
+                ),
+                "png",
+            )
+            rgba_mask.save(
+                os.path.join(
+                    output_folder,
+                    "mask-" + data[i][2].strftime('%Y-%m-%d') + ".png",
+                ),
+                "png",
+            )
+        else:
+            final_image = PIL.Image.alpha_composite(rgba_real, rgba_mask)
+            final_image.save(
+                os.path.join(
+                    output_folder,
+                    "img-" + data[i][2].strftime('%Y-%m-%d') + ".png",
+                ),
+                "png",
+            )
 #         cur_cluster = PIL.Image.fromarray(array_images[i])
 #         cur_cluster.save(
 #             os.path.join(
@@ -236,13 +255,28 @@ def request(coordinates, time, file, detector, size, isolate, output_folder):
     info_obj["events"] = dict_events
     with open(os.path.join(output_folder, "info.json"), "w") as f:
         json.dump(info_obj, f, indent=4)
-    print(f"Saved results in '{output_folder}' directory")
+    print(f"Saved results in '{output_folder}' directory.")
+    print("For more information about received images check `info.json`.")
+
+
+@click.command()
+@click.option("--cache", is_flag=True)
+@click.option("--config", is_flag=True)
+def remove(cache, config):
+    if cache and os.path.exists(EOLEARN_CACHE_FOLDER):
+        shutil.rmtree(EOLEARN_CACHE_FOLDER)
+    if config and os.path.exists(CONFIG_FILE):
+        os.remove(CONFIG_FILE)
 
 
 def main():
-    cli.add_command(config)
-    cli.add_command(request)
-    cli()
+    try:
+        cli.add_command(config)
+        cli.add_command(request)
+        cli.add_command(remove)
+        cli()
+    except Exception:
+        print("Something went wrong")
 
 if __name__ == "__main__":
     main()
