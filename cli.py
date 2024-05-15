@@ -158,7 +158,7 @@ def request(coordinates, time, file, detector, separate, output_folder):
     result_clusters = result_array
 
 
-    print("Saving.")
+    print("Started exporting.")
     acg_list = fguard.utils.AutoColorGenerator(bottom_limit=150)
     array_images = fguard.utils.cluster_arrays_to_images(result_clusters, acg_list)
     max_number_length = len(str(len(array_images)))
@@ -170,7 +170,7 @@ def request(coordinates, time, file, detector, separate, output_folder):
                 if pix[x, y][:3] == (0, 0, 0):
                     pix[x, y] = (0, 0, 0, 0)
         rgba_real = PIL.Image.fromarray(data[i][0]).convert("RGBA")
-        final_image = PIL.Image.blend(rgba_real, rgba_mask, 1)
+        final_image = PIL.Image.blend(rgba_real, rgba_mask, 0)
         final_image.save(
             os.path.join(
                 output_folder,
