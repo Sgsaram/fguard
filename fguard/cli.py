@@ -21,6 +21,7 @@ import fguard.core.vision
 dotenv.load_dotenv(dotenv.find_dotenv())
 
 BASE_DIR = platformdirs.user_data_dir("fguard", False)
+ASSETS_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)), "assets")
 CONFIG_FILE = os.path.join(BASE_DIR, ".fguard-config.json")
 # OUTPUT_FOLDER = os.path.join(BASE_DIR, "output")
 # SH_CLIENT_ID = os.environ.get("SH_CLIENT_ID", "")
@@ -172,7 +173,9 @@ def request(coordinates, time, file, detector, size, isolate, output_folder):
     detector_obj = None
     if m_detector == "net":
         print("using neural networks.")
-        detector_obj = fguard.core.vision.UNetDetector("MODEL.pth")
+        detector_obj = fguard.core.vision.UNetDetector(
+            os.path.join(ASSETS_DIR, "MODEL.pth"),
+        )
     else:
         print("using unsupervised clustering.")
         detector_obj = fguard.core.vision.KMeansDetector(c_blur=9)
