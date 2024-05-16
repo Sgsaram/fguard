@@ -10,12 +10,13 @@ setuptools.setup(
     long_description_content_type='text/markdown',
     license="GPL-3.0",
     classifiers=[
+        'Development Status :: 4 - Beta',
         'Programming Language :: Python :: 3',
-        'License :: OSI Approved :: GPL-3.0',
+        'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
         'Operating System :: OS Independent',
     ],
     python_requires='>=3.3',
-    packages=["fguard"],
+    packages=setuptools.find_packages(),
     install_requires=[
         "click==8.1.7",
         "eo-learn==1.5.2",

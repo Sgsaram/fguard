@@ -1,6 +1,6 @@
 # Forest Guard CLI
 
-Check out website for **documentation** and more info - **https://forestguardian.ru/**.
+Check our website for **documentation** and more info - **https://forestguardian.ru/**.
 Forest Guard CLI using Click framework.
 
 # About
@@ -26,11 +26,11 @@ We download data from Sentinel Hub (https://www.sentinel-hub.com). We work only 
 
 Use venv!
 - [ ] Install requirements using this command:
-```
+```bash
 pip install -r requirements/dev.txt
 ```
 - [ ] Wake the `setup.py` up:
-```
+```bash
 pip install .
 ```
 This will give you the opportunity to use `fguard`.
@@ -38,18 +38,26 @@ This will give you the opportunity to use `fguard`.
 ## Usage
 
 - Add credentials to a programm:
-```
+```bash
 fguard config [–f “path/to/config/settings.toml”] | [--id “YOUR_ID” --token “YOUR_TOKEN”]
 ```
 - Request:
-```
+```bash
 fguard request [–f “path/to/config/settings.toml”] | [-c  c1 c2 c3 c4 -t t1 t2] “output/folder” {-s "size" –d "detector" --isolate}
 ```
 This will save images in output folder. Also saves json files of all events (new, add, merge).
 - Erase cache, config file, etc:
+```bash
+fguard delete [--cache] | [--config] | [--model]
 ```
-fguard delete [--cache] | [--config]
+- To use `net` detector you need to download model:
+```bash
+fguard net --update
 ```
+It can be also used to update model (we still train it).
+
+
+For more info check our website - **https://forestguardian.ru/**.
 
 ### Example of toml settings file
 
