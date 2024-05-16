@@ -2,7 +2,7 @@ import setuptools
 
 setuptools.setup(
     name="fguard",
-    version="1.0.0",
+    version="1.1.1",
     url="https://forestguardian.ru/",
     author="Ivan Gronsky",
     description="Detect deforestation on area over a given period of time",
@@ -27,6 +27,8 @@ setuptools.setup(
         "python-dotenv==1.0.0",
         "requests==2.31.0",
         "tqdm==4.66.2",
+        "torch==2.3.0",
+        "torchvision==0.18.0",
     ],
     entry_points={
         "console_scripts": [
