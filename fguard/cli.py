@@ -13,10 +13,10 @@ import platformdirs
 import sentinelhub
 import tqdm
 
-import fguard.communication
-import fguard.handler
-import fguard.utils
-import fguard.vision
+import fguard.core.communication
+import fguard.core.handler
+import fguard.core.utils
+import fguard.core.vision
 
 dotenv.load_dotenv(dotenv.find_dotenv())
 
@@ -126,12 +126,12 @@ def request(coordinates, time, file, detector, size, isolate, output_folder):
 
 
 
-    fguard.utils.remove_folder_content(output_folder)
+    fguard.core.utils.remove_folder_content(output_folder)
     print(f"Emptied {output_folder}.")
 
 
 
-    comclient = fguard.communication.CommunicationClient(
+    comclient = fguard.core.communication.CommunicationClient(
         sh_client_id=id,
         sh_client_secret=token,
         cache_folder=EOLEARN_CACHE_FOLDER,
@@ -172,22 +172,22 @@ def request(coordinates, time, file, detector, size, isolate, output_folder):
     detector_obj = None
     if m_detector == "net":
         print("using neural networks.")
-        detector_obj = fguard.vision.UNetDetector("MODEL.pth")
+        detector_obj = fguard.core.vision.UNetDetector("MODEL.pth")
     else:
         print("using unsupervised clustering.")
-        detector_obj = fguard.vision.KMeansDetector(c_blur=9)
+        detector_obj = fguard.core.vision.KMeansDetector(c_blur=9)
     result_array = detector_obj.pipe_detect_deforestation(ready_data)
 
 
 
     print("Started processing.")
-    df_handler = fguard.handler.DeforestationHandler(result_array)
+    df_handler = fguard.core.handler.DeforestationHandler(result_array)
     result_clusters, unique_comp_cnt, events = df_handler()
 
 
     print("Started exporting.")
-    acg_list = fguard.utils.AutoColorGenerator(bottom_limit=100, upper_limit=200)
-    array_images = fguard.utils.cluster_arrays_to_images(result_clusters, acg_list)
+    acg_list = fguard.core.utils.AutoColorGenerator(bottom_limit=100, upper_limit=200)
+    array_images = fguard.core.utils.cluster_arrays_to_images(result_clusters, acg_list)
     max_number_length = len(str(len(array_images)))
     for i in tqdm.tqdm(range(len(array_images)), desc="Saving images", unit="pair"):
         rgba_mask = PIL.Image.fromarray(array_images[i]).convert("RGBA")

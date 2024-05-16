@@ -7,7 +7,8 @@ import torch
 import torch.nn.functional as F
 import tqdm
 
-from fguard.unet import UNet
+import fguard.core.unet.unet_model
+# from core.unet import UNet
 
 
 class Detector:
@@ -96,7 +97,7 @@ class UNetDetector(Detector):
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         state_dict = torch.load(model_path, map_location=self.device)
         state_dict.pop("mask_values")
-        self.net = UNet(n_channels=3, n_classes=2, bilinear=bilinear)
+        self.net = fguard.core.unet.unet_model.UNet(n_channels=3, n_classes=2, bilinear=bilinear)
         self.net.to(device=self.device)
         self.net.load_state_dict(state_dict)
         self.out_threshold = out_threshold

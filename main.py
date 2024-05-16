@@ -3,7 +3,8 @@ import os
 
 import dotenv
 
-import fguard
+import fguard.core.communication
+import fguard.core.utils
 import numpy as np
 import PIL.Image
 
@@ -29,7 +30,7 @@ def main():
 #     s_mask.save(os.path.join(OUTPUT_FOLDER, "unet_output.png"))
 
 #     return
-    comclient = fguard.communication.CommunicationClient(
+    comclient = fguard.core.communication.CommunicationClient(
         sh_client_id=SH_CLIENT_ID,
         sh_client_secret=SH_CLIENT_SECRET,
         cache_folder=EOLEARN_CACHE_FOLDER,
@@ -88,7 +89,7 @@ def main():
         image_to_print.save(
             os.path.join(
                 OUTPUT_FOLDER,
-                "img_" + fguard.utils.get_right_aligned_number(cur_ind, 5) + ".png"
+                "img_" + fguard.core.utils.get_right_aligned_number(cur_ind, 5) + ".png"
             ),
             "png",
         )
