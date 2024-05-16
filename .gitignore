@@ -1,6 +1,8 @@
 __pycache__/
 .eolearn_cache/
 .pytest_cache/
+build/
+dist/
 fguard.egg-info/
 output/
 venv/

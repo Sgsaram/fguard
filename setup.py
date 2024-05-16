@@ -11,7 +11,7 @@ setuptools.setup(
     license="GPL-3.0",
     classifiers=[
         'Programming Language :: Python :: 3',
-        'License :: OSI Approved :: MIT License',
+        'License :: OSI Approved :: GPL-3.0',
         'Operating System :: OS Independent',
     ],
     python_requires='>=3.3',
@@ -24,6 +24,7 @@ setuptools.setup(
         "opencv-python==4.8.1.78",
         "platformdirs==4.2.1",
         "python-dotenv==1.0.0",
+        "requests==2.31.0",
         "tqdm==4.66.2",
     ],
     entry_points={
@@ -31,6 +32,4 @@ setuptools.setup(
             "fguard = fguard.cli:main",
         ],
     },
-    include_package_data=True,
-    package_data={"": ["assets/*.pth"]},
 )

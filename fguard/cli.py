@@ -10,6 +10,7 @@ import dotenv
 import numpy as np
 import oauthlib.oauth2.rfc6749.errors
 import platformdirs
+import requests
 import sentinelhub
 import tqdm
 
@@ -21,7 +22,8 @@ import fguard.core.vision
 dotenv.load_dotenv(dotenv.find_dotenv())
 
 BASE_DIR = platformdirs.user_data_dir("fguard", False)
-ASSETS_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)), "assets")
+MODEL_FILE = os.path.join(BASE_DIR, "model.pth")
+MODEL_URL = "https://forestguardian.ru/models/MODEL.pth"
 CONFIG_FILE = os.path.join(BASE_DIR, ".fguard-config.json")
 # OUTPUT_FOLDER = os.path.join(BASE_DIR, "output")
 # SH_CLIENT_ID = os.environ.get("SH_CLIENT_ID", "")
@@ -124,6 +126,10 @@ def request(coordinates, time, file, detector, size, isolate, output_folder):
         exit(-1)
     coords = (coords[1], coords[0], coords[3], coords[2])
 
+    if m_detector == "net" and not os.path.exists(MODEL_FILE):
+        print("No network models found (you are using `net` detector).")
+        print("Run `fguard net --update` (or use `cluster` detector).")
+        exit(-1)
 
 
 
@@ -174,7 +180,7 @@ def request(coordinates, time, file, detector, size, isolate, output_folder):
     if m_detector == "net":
         print("using neural networks.")
         detector_obj = fguard.core.vision.UNetDetector(
-            os.path.join(ASSETS_DIR, "MODEL.pth"),
+            MODEL_FILE,
         )
     else:
         print("using unsupervised clustering.")
@@ -265,21 +271,41 @@ def request(coordinates, time, file, detector, size, isolate, output_folder):
 @click.command()
 @click.option("--cache", is_flag=True)
 @click.option("--config", is_flag=True)
-def remove(cache, config):
+@click.option("--model", is_flag=True)
+def remove(cache, config, model):
     if cache and os.path.exists(EOLEARN_CACHE_FOLDER):
         shutil.rmtree(EOLEARN_CACHE_FOLDER)
     if config and os.path.exists(CONFIG_FILE):
         os.remove(CONFIG_FILE)
+    if model and os.path.exists(MODEL_FILE):
+        os.remove(MODEL_FILE)
 
+
+@click.command()
+@click.option("--update", is_flag=True)
+def net(update):
+    if update:
+        if not os.path.exists(BASE_DIR):
+            os.makedirs(BASE_DIR)
+        print("Started downloading network model.")
+        response = requests.get(MODEL_URL, stream=True)
+        response.raise_for_status()
+        total_size = int(response.headers.get('content-length', 0))
+        with open(MODEL_FILE, 'wb') as file:
+            with tqdm.tqdm(total=total_size, unit='B', unit_scale=True, desc="Download model") as progress_bar:
+                for chunk in response.iter_content(chunk_size=1024):
+                    file.write(chunk)
+                    progress_bar.update(len(chunk))
 
 def main():
     try:
         cli.add_command(config)
         cli.add_command(request)
         cli.add_command(remove)
+        cli.add_command(net)
         cli()
     except Exception:
-        print("Something went wrong")
+        print("Something went wrong.")
 
 if __name__ == "__main__":
     main()
