@@ -22,13 +22,12 @@ setuptools.setup(
         "eo-learn==1.5.2",
         "joblib==1.3.2",
         "numpy==1.26.3",
+        "onnxruntime==1.18.0",
         "opencv-python==4.8.1.78",
         "platformdirs==4.2.1",
         "python-dotenv==1.0.0",
         "requests==2.31.0",
         "tqdm==4.66.2",
-        "torch==2.3.0",
-        "torchvision==0.18.0",
     ],
     entry_points={
         "console_scripts": [

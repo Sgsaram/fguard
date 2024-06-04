@@ -2,22 +2,29 @@ import datetime
 import os
 
 import dotenv
+import torch
+import torch.onnx
+import platformdirs
+import numpy as np
+import PIL.Image
+import onnx
 
 import fguard.core.communication
 import fguard.core.utils
-import numpy as np
-import PIL.Image
+import fguard.core.unet.unet_model
 
 
 dotenv.load_dotenv(dotenv.find_dotenv())
 
-BASE_DIR = dir_path = os.path.dirname(os.path.realpath(__file__))
-CONFIG_FILE = os.path.join(BASE_DIR, ".fguard-config.json")
-OUTPUT_FOLDER = os.path.join(BASE_DIR, "output")
-DATA_FOLDER = os.path.join(BASE_DIR, "assets", "dataset")
-SH_CLIENT_ID = os.environ.get("SH_CLIENT_ID", "")
-SH_CLIENT_SECRET = os.environ.get("SH_CLIENT_SECRET", "")
-EOLEARN_CACHE_FOLDER = os.path.join(BASE_DIR, ".eolearn_cache")
+BASE_DIR = platformdirs.user_data_dir("fguard", False)
+MODEL_FILE = os.path.join(BASE_DIR, "model.pth")
+
+# CONFIG_FILE = os.path.join(BASE_DIR, ".fguard-config.json")
+# OUTPUT_FOLDER = os.path.join(BASE_DIR, "output")
+# DATA_FOLDER = os.path.join(BASE_DIR, "assets", "dataset")
+# SH_CLIENT_ID = os.environ.get("SH_CLIENT_ID", "")
+# SH_CLIENT_SECRET = os.environ.get("SH_CLIENT_SECRET", "")
+# EOLEARN_CACHE_FOLDER = os.path.join(BASE_DIR, ".eolearn_cache")
 
 def main():
 #     fguard.utils.remove_folder_content(OUTPUT_FOLDER)
@@ -30,6 +37,82 @@ def main():
 #     s_mask.save(os.path.join(OUTPUT_FOLDER, "unet_output.png"))
 
 #     return
+
+    
+    onnx_model = onnx.load("model.onnx")
+    onnx.checker.check_model(onnx_model)
+
+
+    return
+
+
+
+
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    state_dict = torch.load(MODEL_FILE, map_location=device)
+    state_dict.pop("mask_values")
+    model = fguard.core.unet.unet_model.UNet(n_channels=3, n_classes=2, bilinear=False)
+    model.to(device=device)
+    model.load_state_dict(state_dict)
+    model.eval()
+    
+    x = np.random.rand(256, 256, 3).astype(np.float32)
+    x = x.transpose((2, 0, 1))
+    x = np.expand_dims(x, 0)
+    x = torch.from_numpy(x)
+
+    torch.onnx.export(
+        model,
+        x,
+        "model.onnx",
+        export_params=True,
+        verbose=True,
+        input_names=["input"],
+        output_names=["output"],
+        dynamic_axes={
+            "input": {0: "batch_size"},
+            "output": {0: "batch_size"},
+        },
+    )
+
+
+    return
+
+
+    old_size = (image.shape[1], image.shape[0])
+    new_size = (256, 256)
+    img = PIL.Image.fromarray(img)
+    img = img.resize(new_size, PIL.Image.Resampling.BICUBIC)
+    img = np.array(img)
+    
+    img = img.transpose((2, 0, 1))
+    if (img > 1).any():
+        img = img / 255.0
+    img = torch.from_numpy(img)
+    img = img.unsqueeze(0)
+    img = img.to(device=self.device, dtype=torch.float32)
+
+    with torch.no_grad():
+        output = self.net(img).cpu()
+        output = F.interpolate(output, (image.shape[1], image.shape[0]), mode='bilinear')
+        if self.net.n_classes > 1:
+            mask = output.argmax(dim=1)
+        else:
+            mask = torch.sigmoid(output) > self.out_threshold
+
+
+    res = mask[0].long().squeeze().numpy()
+    res = (res * 255).astype(np.uint8)
+    res = PIL.Image.fromarray(res)
+    res = res.resize(old_size, PIL.Image.Resampling.NEAREST)
+    res = np.array(res)
+    return res > 0
+
+
+
+
+
+
     comclient = fguard.core.communication.CommunicationClient(
         sh_client_id=SH_CLIENT_ID,
         sh_client_secret=SH_CLIENT_SECRET,

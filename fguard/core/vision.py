@@ -3,12 +3,9 @@ import typing
 import cv2 as cv
 import numpy as np
 import PIL.Image
-import torch
-import torch.nn.functional as F
+import onnxruntime as ort
 import tqdm
 
-import fguard.core.unet.unet_model
-# from core.unet import UNet
 
 
 class Detector:
@@ -91,23 +88,14 @@ class UNetDetector(Detector):
     def __init__(
         self,
         model_path: str,
-        bilinear: bool = False,
-        out_threshold: float = 0.5,
     ) -> None:
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        state_dict = torch.load(model_path, map_location=self.device)
-        state_dict.pop("mask_values")
-        self.net = fguard.core.unet.unet_model.UNet(n_channels=3, n_classes=2, bilinear=bilinear)
-        self.net.to(device=self.device)
-        self.net.load_state_dict(state_dict)
-        self.out_threshold = out_threshold
+        self.ort_session = ort.InferenceSession(model_path)
 
     def detect(
         self,
         image: np.ndarray,
         mask: np.ndarray,
     ) -> np.ndarray:
-        self.net.eval()
         img = np.copy(image)
         for x in range(image.shape[0]):
             for y in range(image.shape[1]):
@@ -118,29 +106,31 @@ class UNetDetector(Detector):
         new_size = (256, 256)
         img = PIL.Image.fromarray(img)
         img = img.resize(new_size, PIL.Image.Resampling.BICUBIC)
-        img = np.array(img)
+        img = np.array(img, dtype=np.float32)
         
         img = img.transpose((2, 0, 1))
         if (img > 1).any():
             img = img / 255.0
-        img = torch.from_numpy(img)
-        img = img.unsqueeze(0)
-        img = img.to(device=self.device, dtype=torch.float32)
+        img = np.expand_dims(img, 0)
 
-        with torch.no_grad():
-            output = self.net(img).cpu()
-            output = F.interpolate(output, (image.shape[1], image.shape[0]), mode='bilinear')
-            if self.net.n_classes > 1:
-                mask = output.argmax(dim=1)
-            else:
-                mask = torch.sigmoid(output) > self.out_threshold
+        output = self.ort_session.run(None, {"input": img})[0]
 
+#       mid_img = PIL.Image.fromarray(output)
+#       mid_img = mid_img.resize(old_size, PIL.Image.Resampling.BILINEAR)
+#       mid_arr = np.array(mid_img)
+        res_mask = np.argmax(output, axis=1)
 
-        res = mask[0].long().squeeze().numpy()
+        res = np.squeeze(res_mask[0])
         res = (res * 255).astype(np.uint8)
         res = PIL.Image.fromarray(res)
-        res = res.resize(old_size, PIL.Image.Resampling.NEAREST)
+        res = res.resize(old_size, PIL.Image.Resampling.BICUBIC)
         res = np.array(res)
+
+        for x in range(image.shape[0]):
+            for y in range(image.shape[1]):
+                if not mask[x, y][0]:
+                    res[x][y] = 0
+
         return res > 0
 
     def pipe_detect_deforestation(
@@ -154,3 +144,4 @@ class UNetDetector(Detector):
                 cur_mask |= final_masks[-1]
             final_masks.append(cur_mask)
         return np.array(final_masks)
+

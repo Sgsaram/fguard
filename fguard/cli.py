@@ -22,8 +22,8 @@ import fguard.core.vision
 dotenv.load_dotenv(dotenv.find_dotenv())
 
 BASE_DIR = platformdirs.user_data_dir("fguard", False)
-MODEL_FILE = os.path.join(BASE_DIR, "model.pth")
-MODEL_URL = "https://forestguardian.ru/models/MODEL.pth"
+MODEL_FILE = os.path.join(BASE_DIR, "model.onnx")
+MODEL_URL = "https://forestguardian.ru/models/model.onnx"
 CONFIG_FILE = os.path.join(BASE_DIR, ".fguard-config.json")
 # OUTPUT_FOLDER = os.path.join(BASE_DIR, "output")
 # SH_CLIENT_ID = os.environ.get("SH_CLIENT_ID", "")
@@ -304,7 +304,7 @@ def main():
         cli.add_command(remove)
         cli.add_command(net)
         cli()
-    except Exception:
+    except ZeroDivisionError:
         print("Something went wrong.")
 
 if __name__ == "__main__":
