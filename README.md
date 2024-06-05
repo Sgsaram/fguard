@@ -45,7 +45,7 @@ Use venv!
 
 - [ ] Install requirements using this command:
 ```bash
-pip install -r requirements/dev.txt
+pip install -r requirements/prod.txt
 ```
 - [ ] Wake the `setup.py` up:
 ```bash
