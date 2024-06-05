@@ -24,7 +24,25 @@ We download data from Sentinel Hub (https://www.sentinel-hub.com). We work only 
 
 ## Preparation
 
+### PyPI
+- [ ] Just install the package:
+```bash
+pip install fguard
+```
+
+### Install via repo
+- [ ] Clone the repository (it will download to `fguard` folder):
+```bash
+git clone https://github.com/Sgsaram/fguard.git fguard
+```
+
+- [ ] Go to the folder:
+```bash
+cd fguard
+```
+
 Use venv!
+
 - [ ] Install requirements using this command:
 ```bash
 pip install -r requirements/dev.txt
@@ -33,7 +51,7 @@ pip install -r requirements/dev.txt
 ```bash
 pip install .
 ```
-This will give you the opportunity to use `fguard`.
+This will give you the opportunity to use **fguard** cli tool.
 
 ## Usage
 
