@@ -74,7 +74,7 @@ def config(id, token, file):
 @click.option("-c", "--coordinates", nargs=4, type=float)
 @click.option("-t", "--time", nargs=2, type=str)
 @click.option("-f", "--file", type=click.Path(exists=True, file_okay=True))
-@click.option("-d", "--detector", default="net", type=click.Choice(["net", "cluster"]))
+@click.option("-d", "--detector", default="cluster", type=click.Choice(["net", "cluster"]))
 @click.option("-s", "--size", nargs=2, type=int)
 @click.option("-i", "--isolate", is_flag=True)
 # @click.option("-l", "--landsat", type=str)
