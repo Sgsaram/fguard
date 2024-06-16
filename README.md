@@ -1,7 +1,6 @@
 # Forest Guard CLI
 
 Check our website for **documentation** and more info - **https://forestguardian.ru/**.
-Forest Guard CLI using Click framework.
 
 # About
 
