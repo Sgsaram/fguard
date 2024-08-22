@@ -23,7 +23,7 @@ dotenv.load_dotenv(dotenv.find_dotenv())
 
 BASE_DIR = platformdirs.user_data_dir("fguard", False)
 MODEL_FILE = os.path.join(BASE_DIR, "model.onnx")
-MODEL_URL = "https://forestguardian.ru/models/model.onnx"
+MODEL_URL = "https://sgsaram.github.io/fguard/models/model.onnx"
 CONFIG_FILE = os.path.join(BASE_DIR, ".fguard-config.json")
 # OUTPUT_FOLDER = os.path.join(BASE_DIR, "output")
 # SH_CLIENT_ID = os.environ.get("SH_CLIENT_ID", "")

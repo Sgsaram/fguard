@@ -1,6 +1,6 @@
 # Forest Guard CLI
 
-Check our website for **documentation** and more info - **https://forestguardian.ru/**.
+Check our website for **documentation** and more info - **https://sgsaram.github.io/fguard/**.
 
 # About
 
@@ -74,7 +74,7 @@ fguard net --update
 It can be also used to update model (we still train it).
 
 
-For more info check our website - **https://forestguardian.ru/**.
+For more info check our website - **https://sgsaram.github.io/fguard/**.
 
 ### Example of toml settings file
 
